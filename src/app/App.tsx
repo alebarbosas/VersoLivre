@@ -276,7 +276,7 @@ function SidebarProf({ current, navigate }: { current: Page; navigate: (p: Page)
     { icon: <FileText size={18} />, label: "Textos enviados", page: "textos-enviados" },
     { icon: <Layers size={18} />, label: "Materiais", page: "materiais" },
     { icon: <Library size={18} />, label: "Publicações", page: "biblioteca" },
-    { icon: <WifiOff size={18} />, label: "Baixa conectividade", page: "baixa-conectividade" },
+    // { icon: <WifiOff size={18} />, label: "Baixa conectividade", page: "baixa-conectividade" },
   ];
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 bg-white rounded-2xl shadow-sm p-4 h-fit sticky top-24">
@@ -316,7 +316,7 @@ function PageHome({ navigate }: { navigate: (p: Page) => void }) {
       {/* Hero */}
       <section style={{ background: OFF_WHITE }} className="pt-12 pb-16 px-5">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-12 items-center">
             {/* Left */}
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-5" style={{ background: `${ORANGE}15`, color: ORANGE }}>
@@ -338,59 +338,12 @@ function PageHome({ navigate }: { navigate: (p: Page) => void }) {
               </div>
             </div>
             {/* Right – visual */}
-            <div className="flex flex-col gap-4">
-              <div className="flex gap-4">
-                <div
-                  className="flex-1 rounded-3xl p-6 cursor-pointer hover:scale-[1.02] transition-transform"
-                  style={{ background: ORANGE }}
-                  onClick={() => navigate("minhas-historias")}
-                >
-                  <BookMarked size={28} className="text-white mb-3" />
-                  <p className="text-white font-bold text-lg leading-tight">Minhas histórias</p>
-                  <p className="text-white/70 text-xs mt-1">3 em andamento</p>
-                </div>
-                <div
-                  className="flex-1 rounded-3xl p-6 cursor-pointer hover:scale-[1.02] transition-transform"
-                  style={{ background: MAGENTA }}
-                  onClick={() => navigate("criar-historia")}
-                >
-                  <PenLine size={28} className="text-white mb-3" />
-                  <p className="text-white font-bold text-lg leading-tight">Criar história</p>
-                  <p className="text-white/70 text-xs mt-1">Comece agora</p>
-                </div>
-              </div>
-              <div
-                className="rounded-3xl p-6 cursor-pointer hover:scale-[1.01] transition-transform"
-                style={{ background: NAVY }}
-                onClick={() => navigate("biblioteca")}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-white/60 text-xs font-semibold mb-1 uppercase tracking-wider">Próxima leitura</p>
-                    <p className="text-white font-bold text-xl mb-1">Heartstopper</p>
-                    <p className="text-white/60 text-sm">Alice Oseman · Romance LGBTQIAPN+</p>
-                  </div>
-                  <Bookmark size={22} className="text-white/40" />
-                </div>
-                <div className="mt-4 w-full bg-white/10 rounded-full h-1.5">
-                  <div className="h-full rounded-full" style={{ width: "38%", background: ORANGE }} />
-                </div>
-                <p className="text-white/40 text-xs mt-1.5">38% concluído</p>
-              </div>
-              {/* mini book carousel */}
-              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-                {BOOKS.map((b, i) => (
-                  <div key={i} className="shrink-0 w-16 h-24 rounded-xl flex items-center justify-center" style={{ background: b.grad }}>
-                    <BookOpen size={20} className="text-white opacity-60" />
-                  </div>
-                ))}
-              </div>
-            </div>
+            
           </div>
         </div>
       </section>
 
-      {/* Action cards */}
+      {/* Action cards
       <section className="py-16 px-5 bg-white">
         <div className="max-w-6xl mx-auto">
           <SectionTitle>O que você quer fazer hoje?</SectionTitle>
@@ -415,7 +368,7 @@ function PageHome({ navigate }: { navigate: (p: Page) => void }) {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Books section */}
       <section className="py-16 px-5" style={{ background: OFF_WHITE }}>
@@ -608,7 +561,9 @@ function PageParaEscolas({ navigate }: { navigate: (p: Page) => void }) {
           <p className="text-white/70 text-base leading-relaxed mb-8 max-w-2xl mx-auto">
             A Verso Livre apoia escolas na implementação de eletivas de escrita criativa com foco em diversidade, pertencimento e protagonismo LGBTQIAPN+, sem substituir o currículo da instituição.
           </p>
-          <GradBtn onClick={() => navigate("login")}>Quero implementar na minha escola</GradBtn>
+          <GradBtn onClick={() => window.open(
+      "https://docs.google.com/forms/d/e/1FAIpQLScIDieZ3mi10rAdP1yZncebWKw6PWTh6pRlNlz_KtKPsIGJSg/viewform?usp=dialog"
+    )}>Leve o Verso Livre para sua escola</GradBtn>
         </div>
       </section>
 
