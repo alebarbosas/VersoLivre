@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { signIn, signUp, getMyProfile, type UserRole } from "../lib/supabase";
 import {
   Menu, X, User, BookOpen, PenLine, Library, FileText,
   ChevronRight, Download, Eye, Mic, CheckCircle, Bookmark,
@@ -669,45 +670,138 @@ function PageAcessibilidade() {
 }
 
 /* ── Login ───────────────────────────────────────────── */
+/** Traduz as mensagens de erro mais comuns do Supabase para português. */
+function traduzErroAuth(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
+  if (m.includes("email not confirmed")) return "Confirme seu e-mail antes de entrar (verifique sua caixa de entrada).";
+  if (m.includes("user already registered")) return "Já existe uma conta com este e-mail.";
+  if (m.includes("password should be at least")) return "A senha precisa ter no mínimo 6 caracteres.";
+  if (m.includes("unable to validate email")) return "E-mail inválido.";
+  if (m.includes("supabase") || m.includes("failed to fetch")) return "Não foi possível conectar. Verifique a configuração do Supabase (.env).";
+  return msg;
+}
+
 function PageLogin({ navigate }: { navigate: (p: Page) => void }) {
-  const profiles = [
-    { title: "Sou aluno", desc: "Acesse inspirações, escreva sua história e acompanhe sua publicação.", color: ORANGE, page: "painel-aluno" as Page, icon: <User size={32} /> },
-    { title: "Sou professor", desc: "Organize a eletiva, acompanhe os textos e aprove publicações.", color: MAGENTA, page: "painel-professor" as Page, icon: <Users size={32} /> },
-    { title: "Sou escola", desc: "Conheça a proposta, acompanhe impacto e implemente a eletiva.", color: NAVY, page: "para-escolas" as Page, icon: <BookOpen size={32} /> },
-  ];
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const irPorPerfil = (role?: UserRole) => {
+    if (role === "professor") navigate("painel-professor");
+    else if (role === "escola") navigate("para-escolas");
+    else navigate("painel-aluno");
+  };
+
+  const limpar = () => { setError(null); setInfo(null); };
+
+  const aoEnviar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    limpar();
+    setLoading(true);
+
+    if (mode === "login") {
+      const { error } = await signIn(email, password);
+      if (error) { setError(traduzErroAuth(error.message)); setLoading(false); return; }
+      const profile = await getMyProfile();
+      setLoading(false);
+      irPorPerfil(profile?.role);
+      return;
+    }
+
+    // signup — apenas escolas podem se cadastrar
+    const { data, error } = await signUp(email, password, "escola");
+    setLoading(false);
+    if (error) { setError(traduzErroAuth(error.message)); return; }
+    if (data.session) {
+      irPorPerfil("escola"); // confirmação de e-mail desligada: já entra
+    } else {
+      setInfo("Conta criada! Enviamos um e-mail de confirmação. Confirme para poder entrar.");
+      setMode("login");
+    }
+  };
+
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:border-transparent focus:ring-2 transition-all";
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-5 py-16" style={{ background: OFF_WHITE }}>
-      <div className="w-full max-w-4xl">
-        <div className="text-center mb-12">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
           <div style={{ background: `linear-gradient(135deg, ${ORANGE}, ${MAGENTA})` }} className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-5">
             <BookOpen size={32} className="text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Como você quer acessar?</h1>
-          <p className="text-gray-500">Escolha seu perfil para entrar na plataforma</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+            {mode === "login" ? "Bem-vindo de volta" : "Cadastre sua escola"}
+          </h1>
+          <p className="text-gray-500">
+            {mode === "login"
+              ? "Entre com seu e-mail e senha"
+              : "Crie a conta da instituição para começar"}
+          </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {profiles.map((p, i) => (
+
+        <div className="bg-white rounded-3xl p-7 shadow-sm border border-gray-100">
+          {/* alternância login / cadastro */}
+          <div className="flex gap-1 p-1 rounded-xl mb-6" style={{ background: "#F3F1F5" }}>
+            {([["login", "Entrar"], ["signup", "Cadastrar escola"]] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => { setMode(k); limpar(); }}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer"
+                style={mode === k ? { background: "#fff", color: NAVY, boxShadow: "0 1px 3px rgba(0,0,0,.1)" } : { color: "#888" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={aoEnviar} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">E-mail</label>
+              <input
+                type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="voce@escola.com.br"
+                className={inputCls} style={{ ["--tw-ring-color" as string]: MAGENTA }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Senha</label>
+              <input
+                type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className={inputCls} style={{ ["--tw-ring-color" as string]: MAGENTA }}
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm font-medium px-3 py-2 rounded-lg" style={{ background: "#FDECEA", color: "#C0392B" }}>{error}</p>
+            )}
+            {info && (
+              <p className="text-sm font-medium px-3 py-2 rounded-lg" style={{ background: "#E8F5E9", color: "#2E7D32" }}>{info}</p>
+            )}
+
             <button
-              key={i}
-              onClick={() => navigate(p.page)}
-              className="bg-white rounded-3xl p-8 text-center border-2 hover:scale-[1.02] transition-all cursor-pointer shadow-sm hover:shadow-lg"
-              style={{ borderColor: "transparent" }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = p.color)}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = "transparent")}
+              type="submit" disabled={loading}
+              style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA})` }}
+              className="w-full px-5 py-3 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-5" style={{ background: p.color }}>
-                {p.icon}
-              </div>
-              <h2 className="font-bold text-xl mb-2">{p.title}</h2>
-              <p className="text-gray-500 text-sm leading-relaxed">{p.desc}</p>
-              <div className="mt-6">
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold" style={{ color: p.color }}>
-                  Acessar <ArrowRight size={14} />
-                </span>
-              </div>
+              {loading ? "Aguarde..." : (mode === "login" ? "Entrar" : "Criar conta da escola")}
+              {!loading && <ArrowRight size={16} />}
             </button>
-          ))}
+          </form>
+
+          {mode === "login" && (
+            <p className="text-center text-xs text-gray-400 mt-5 leading-relaxed">
+              Alunos e professores acessam com a conta criada pela escola.<br />
+              É uma instituição?{" "}
+              <button onClick={() => { setMode("signup"); limpar(); }} className="font-semibold cursor-pointer" style={{ color: MAGENTA }}>
+                Cadastre sua escola
+              </button>
+            </p>
+          )}
         </div>
       </div>
     </div>
