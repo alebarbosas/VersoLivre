@@ -13,6 +13,17 @@ type Page =
   | "minhas-historias" | "publicacao" | "painel-professor"
   | "textos-enviados" | "materiais" | "baixa-conectividade";
 
+type SubmittedStory = {
+  id: number;
+  titulo: string;
+  categoria: string;
+  tags: string;
+  texto: string;
+  aluno: string;
+  status: "Enviado para revisão";
+  data: string;
+};
+
 const ORANGE = "#FB5603";
 const MAGENTA = "#D81DA0";
 const NAVY = "#1B0C73";
@@ -682,125 +693,51 @@ function traduzErroAuth(msg: string): string {
 }
 
 function PageLogin({ navigate }: { navigate: (p: Page) => void }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-
-  const irPorPerfil = (role?: UserRole) => {
-    if (role === "professor") navigate("painel-professor");
-    else if (role === "escola") navigate("para-escolas");
-    else navigate("painel-aluno");
-  };
-
-  const limpar = () => { setError(null); setInfo(null); };
-
-  const aoEnviar = async (e: React.FormEvent) => {
-    e.preventDefault();
-    limpar();
-    setLoading(true);
-
-    if (mode === "login") {
-      const { error } = await signIn(email, password);
-      if (error) { setError(traduzErroAuth(error.message)); setLoading(false); return; }
-      const profile = await getMyProfile();
-      setLoading(false);
-      irPorPerfil(profile?.role);
-      return;
-    }
-
-    // signup — apenas escolas podem se cadastrar
-    const { data, error } = await signUp(email, password, "escola");
-    setLoading(false);
-    if (error) { setError(traduzErroAuth(error.message)); return; }
-    if (data.session) {
-      irPorPerfil("escola"); // confirmação de e-mail desligada: já entra
-    } else {
-      setInfo("Conta criada! Enviamos um e-mail de confirmação. Confirme para poder entrar.");
-      setMode("login");
-    }
-  };
-
-  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:border-transparent focus:ring-2 transition-all";
+  const options = [
+    {
+      title: "Entrar como aluno",
+      desc: "Acesse suas histórias, materiais, feedbacks e publicação.",
+      icon: <User size={32} />,
+      color: ORANGE,
+      page: "painel-aluno" as Page,
+    },
+    {
+      title: "Entrar como professor",
+      desc: "Acompanhe estudantes, revise textos e organize a eletiva.",
+      icon: <Users size={32} />,
+      color: MAGENTA,
+      page: "painel-professor" as Page,
+    },
+  ];
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-5 py-16" style={{ background: OFF_WHITE }}>
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-3xl">
         <div className="text-center mb-8">
           <div style={{ background: `linear-gradient(135deg, ${ORANGE}, ${MAGENTA})` }} className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-5">
             <BookOpen size={32} className="text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-            {mode === "login" ? "Bem-vindo de volta" : "Cadastre sua escola"}
-          </h1>
-          <p className="text-gray-500">
-            {mode === "login"
-              ? "Entre com seu e-mail e senha"
-              : "Crie a conta da instituição para começar"}
-          </p>
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Como você quer entrar?</h1>
+          <p className="text-gray-500">Escolha seu perfil para acessar a Verso Livre.</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-7 shadow-sm border border-gray-100">
-          {/* alternância login / cadastro */}
-          <div className="flex gap-1 p-1 rounded-xl mb-6" style={{ background: "#F3F1F5" }}>
-            {([["login", "Entrar"], ["signup", "Cadastrar escola"]] as const).map(([k, label]) => (
-              <button
-                key={k}
-                onClick={() => { setMode(k); limpar(); }}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer"
-                style={mode === k ? { background: "#fff", color: NAVY, boxShadow: "0 1px 3px rgba(0,0,0,.1)" } : { color: "#888" }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={aoEnviar} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">E-mail</label>
-              <input
-                type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="voce@escola.com.br"
-                className={inputCls} style={{ ["--tw-ring-color" as string]: MAGENTA }}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Senha</label>
-              <input
-                type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                className={inputCls} style={{ ["--tw-ring-color" as string]: MAGENTA }}
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm font-medium px-3 py-2 rounded-lg" style={{ background: "#FDECEA", color: "#C0392B" }}>{error}</p>
-            )}
-            {info && (
-              <p className="text-sm font-medium px-3 py-2 rounded-lg" style={{ background: "#E8F5E9", color: "#2E7D32" }}>{info}</p>
-            )}
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {options.map((option) => (
             <button
-              type="submit" disabled={loading}
-              style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA})` }}
-              className="w-full px-5 py-3 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              key={option.title}
+              onClick={() => navigate(option.page)}
+              className="bg-white rounded-3xl p-7 shadow-sm border border-black/5 text-left hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer"
             >
-              {loading ? "Aguarde..." : (mode === "login" ? "Entrar" : "Criar conta da escola")}
-              {!loading && <ArrowRight size={16} />}
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-5" style={{ background: option.color }}>
+                {option.icon}
+              </div>
+              <h2 className="font-extrabold text-xl text-gray-900 mb-2">{option.title}</h2>
+              <p className="text-gray-500 text-sm leading-relaxed mb-5">{option.desc}</p>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold" style={{ color: option.color }}>
+                Entrar <ArrowRight size={14} />
+              </span>
             </button>
-          </form>
-
-          {mode === "login" && (
-            <p className="text-center text-xs text-gray-400 mt-5 leading-relaxed">
-              Alunos e professores acessam com a conta criada pela escola.<br />
-              É uma instituição?{" "}
-              <button onClick={() => { setMode("signup"); limpar(); }} className="font-semibold cursor-pointer" style={{ color: MAGENTA }}>
-                Cadastre sua escola
-              </button>
-            </p>
-          )}
+          ))}
         </div>
       </div>
     </div>
@@ -924,7 +861,13 @@ function PagePainelAluno({ navigate }: { navigate: (p: Page) => void }) {
 }
 
 /* -- Criar História ------------------------------------ */
-function PageCriarHistoria({ navigate }: { navigate: (p: Page) => void }) {
+function PageCriarHistoria({
+  navigate,
+  setSubmittedStories,
+}: {
+  navigate: (p: Page) => void;
+  setSubmittedStories: React.Dispatch<React.SetStateAction<SubmittedStory[]>>;
+}) {
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [cat, setCat] = useState("Conto");
@@ -952,6 +895,18 @@ function PageCriarHistoria({ navigate }: { navigate: (p: Page) => void }) {
       return;
     }
 
+    const novaHistoria: SubmittedStory = {
+      id: Date.now(),
+      titulo: title,
+      categoria: cat,
+      tags: tags,
+      texto: text,
+      aluno: "Maria Giovana",
+      status: "Enviado para revisão",
+      data: new Date().toLocaleDateString("pt-BR"),
+    };
+
+    setSubmittedStories((prev) => [novaHistoria, ...prev]);
     setDraftStatus("Enviado para revisão");
     showMessage("História enviada para revisão da professora!");
   };
@@ -1313,15 +1268,17 @@ function PagePainelProf({ navigate }: { navigate: (p: Page) => void }) {
 }
 
 /* ── Textos Enviados ─────────────────────────────────── */
-function PageTextosEnviados({ navigate }: { navigate: (p: Page) => void }) {
+function PageTextosEnviados({
+  navigate,
+  submittedStories,
+}: {
+  navigate: (p: Page) => void;
+  submittedStories: SubmittedStory[];
+}) {
   const [selected, setSelected] = useState(0);
   const [feedback, setFeedback] = useState("");
-  const textos = [
-    { aluno: "Maria Giovana", titulo: "O céu também muda", cat: "Conto", text: "Era uma vez uma menina chamada Lua que acordava todo dia olhando para o espelho esperando ver alguém diferente. Não porque ela fosse triste — ela só ainda não sabia exatamente quem era a pessoa que vivia naquele corpo. Um dia, ela decidiu mudar o nome. Só isso. Mas mudar o nome mudou tudo." },
-    { aluno: "Ícaro Lima", titulo: "A biblioteca proibida", cat: "Romance", text: "A biblioteca da escola fechava às 17h, mas Marcos sempre encontrava uma desculpa para ficar até mais tarde. Não era pelos livros — era por Gabriel, o bibliotecário estagiário que ria de forma silenciosa, como se o riso fosse um segredo entre ele e o mundo." },
-    { aluno: "Luna Paz", titulo: "Floresta de espelhos", cat: "Fantasia", text: "Naquela floresta, cada árvore era um espelho. Não refletia o rosto, mas a alma. Sofia entrou com medo. Saiu entendendo que ela podia ser muitas coisas ao mesmo tempo." },
-  ];
-  const t = textos[selected];
+  const hasStories = submittedStories.length > 0;
+  const story = submittedStories[selected] ?? submittedStories[0];
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
@@ -1329,50 +1286,73 @@ function PageTextosEnviados({ navigate }: { navigate: (p: Page) => void }) {
         <SidebarProf current="textos-enviados" navigate={navigate} />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-extrabold mb-6">Textos enviados</h1>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Lista */}
-            <div className="flex flex-col gap-3">
-              {textos.map((tx, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSelected(i)}
-                  className="w-full text-left rounded-2xl p-4 border-2 transition-all cursor-pointer"
-                  style={{ borderColor: selected === i ? MAGENTA : "rgba(0,0,0,0.08)", background: selected === i ? `${MAGENTA}08` : "white" }}
-                >
-                  <p className="font-bold text-sm">{tx.titulo}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{tx.aluno} · {tx.cat}</p>
-                </button>
-              ))}
-            </div>
 
-            {/* Texto */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>{t.cat}</p>
-              <h2 className="font-extrabold text-xl mb-1">{t.titulo}</h2>
-              <p className="text-xs text-gray-400 mb-4">por {t.aluno}</p>
-              <p className="text-gray-700 text-sm leading-relaxed">{t.text}</p>
+          {!hasStories ? (
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-black/5 text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: `${MAGENTA}15`, color: MAGENTA }}>
+                <FileText size={28} />
+              </div>
+              <p className="font-extrabold text-lg text-gray-900">Nenhum texto enviado ainda</p>
+              <p className="text-sm text-gray-500 mt-2">Quando um aluno enviar uma história, ela aparecerá aqui para revisão.</p>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="flex flex-col gap-3">
+                {submittedStories.map((item, i) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelected(i)}
+                    className="w-full text-left rounded-2xl p-4 border-2 transition-all cursor-pointer bg-white"
+                    style={{ borderColor: selected === i ? MAGENTA : "rgba(0,0,0,0.08)", background: selected === i ? `${MAGENTA}08` : "white" }}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <p className="font-bold text-sm leading-tight">{item.titulo}</p>
+                      <StatusBadge status={item.status} />
+                    </div>
+                    <p className="text-xs text-gray-500">{item.aluno} · {item.categoria}</p>
+                    <p className="text-xs text-gray-400 mt-1">Enviado em {item.data}</p>
+                    <p className="text-xs text-gray-500 mt-3 leading-relaxed line-clamp-3">{item.texto}</p>
+                    {item.tags && <p className="text-xs font-semibold mt-3" style={{ color: ORANGE }}>#{item.tags}</p>}
+                  </button>
+                ))}
+              </div>
 
-            {/* Feedback */}
-            <div className="flex flex-col gap-4">
-              <div className="bg-white rounded-2xl p-5 shadow-sm">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Comentário para o aluno</label>
-                <textarea
-                  value={feedback}
-                  onChange={e => setFeedback(e.target.value)}
-                  rows={5}
-                  placeholder="Escreva um feedback construtivo..."
-                  className="w-full border-2 rounded-xl p-3 text-sm resize-none focus:outline-none"
-                  style={{ borderColor: "rgba(0,0,0,0.1)" }}
-                />
-                <div className="flex flex-col gap-2 mt-3">
-                  <Btn color={ORANGE} full>Enviar comentário</Btn>
-                  <Btn color={NAVY} outline full>Solicitar ajustes</Btn>
-                  <GradBtn full>Aprovar publicação</GradBtn>
+              {story && (
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-black/5">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>{story.categoria}</p>
+                      <h2 className="font-extrabold text-xl leading-tight">{story.titulo}</h2>
+                    </div>
+                    <StatusBadge status={story.status} />
+                  </div>
+                  <p className="text-xs text-gray-400 mb-1">por {story.aluno}</p>
+                  <p className="text-xs text-gray-400 mb-4">Data de envio: {story.data}</p>
+                  {story.tags && <p className="text-xs font-semibold mb-4" style={{ color: MAGENTA }}>Tags: {story.tags}</p>}
+                  <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">{story.texto}</p>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-4">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-black/5">
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Comentário para o aluno</label>
+                  <textarea
+                    value={feedback}
+                    onChange={e => setFeedback(e.target.value)}
+                    rows={5}
+                    placeholder="Escreva um feedback construtivo..."
+                    className="w-full border-2 rounded-xl p-3 text-sm resize-none focus:outline-none"
+                    style={{ borderColor: "rgba(0,0,0,0.1)" }}
+                  />
+                  <div className="flex flex-col gap-2 mt-3">
+                    <Btn color={ORANGE} full>Enviar comentário</Btn>
+                    <Btn color={NAVY} outline full>Solicitar ajustes</Btn>
+                    <GradBtn full>Aprovar publicação</GradBtn>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -1488,6 +1468,7 @@ function PageBaixaConect({ navigate }: { navigate: (p: Page) => void }) {
 ══════════════════════════════════════════════════════ */
 export default function App() {
   const [page, setPage] = useState<Page>("home");
+  const [submittedStories, setSubmittedStories] = useState<SubmittedStory[]>([]);
 
   const navigate = (p: Page) => {
     setPage(p);
@@ -1512,11 +1493,11 @@ export default function App() {
         {page === "acessibilidade" && <PageAcessibilidade />}
         {page === "login" && <PageLogin navigate={navigate} />}
         {page === "painel-aluno" && <PagePainelAluno navigate={navigate} />}
-        {page === "criar-historia" && <PageCriarHistoria navigate={navigate} />}
+        {page === "criar-historia" && <PageCriarHistoria navigate={navigate} setSubmittedStories={setSubmittedStories} />}
         {page === "minhas-historias" && <PageMinhasHistorias navigate={navigate} />}
         {page === "publicacao" && <PagePublicacao navigate={navigate} />}
         {page === "painel-professor" && <PagePainelProf navigate={navigate} />}
-        {page === "textos-enviados" && <PageTextosEnviados navigate={navigate} />}
+        {page === "textos-enviados" && <PageTextosEnviados navigate={navigate} submittedStories={submittedStories} />}
         {page === "materiais" && <PageMateriais navigate={navigate} />}
         {page === "baixa-conectividade" && <PageBaixaConect navigate={navigate} />}
       </main>
@@ -1525,5 +1506,8 @@ export default function App() {
     </div>
   );
 }
+
+
+
 
 
