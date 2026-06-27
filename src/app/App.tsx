@@ -929,97 +929,164 @@ function PageCriarHistoria({ navigate }: { navigate: (p: Page) => void }) {
   const [text, setText] = useState("");
   const [cat, setCat] = useState("Conto");
   const [tags, setTags] = useState("");
+  const [message, setMessage] = useState("");
+  const [draftStatus, setDraftStatus] = useState("Aguardando início");
+
+  const showMessage = (nextMessage: string) => {
+    setMessage(nextMessage);
+  };
+
+  const handleSaveDraft = () => {
+    if (!title.trim() || !text.trim()) {
+      showMessage("Preencha o título e o texto da história antes de salvar.");
+      return;
+    }
+
+    setDraftStatus("Rascunho salvo");
+    showMessage("Rascunho salvo com sucesso!");
+  };
+
+  const handleSendToTeacher = () => {
+    if (!title.trim() || !text.trim()) {
+      showMessage("Preencha o título e o texto da história antes de enviar.");
+      return;
+    }
+
+    setDraftStatus("Enviado para revisão");
+    showMessage("História enviada para revisão da professora!");
+  };
+
+  const handleListenText = () => {
+    showMessage(text.trim() ? "Leitura em voz alta iniciada." : "Escreva um texto antes de ouvir sua história.");
+  };
+
+  const tips = [
+    "Comece por uma cena que tenha emoção.",
+    "Mostre o que a personagem sente, deseja e teme.",
+    "Use diálogos para aproximar as pessoas da história.",
+    "Revise depois: agora o mais importante é escrever.",
+  ];
 
   return (
-    <div className="max-w-6xl mx-auto px-5 py-8">
-      <div className="flex gap-6 items-start">
-        <SidebarAluno current="criar-historia" navigate={navigate} />
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-extrabold mb-6">Criar história</h1>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Editor */}
-            <div className="md:col-span-2 flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Título da história</label>
-                <input
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="Dê um título à sua história..."
-                  className="w-full border-2 rounded-xl px-4 py-3 text-base font-semibold focus:outline-none transition-colors"
-                  style={{ borderColor: title ? ORANGE : "rgba(0,0,0,0.1)" }}
-                />
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Categoria</label>
-                  <select
-                    value={cat}
-                    onChange={e => setCat(e.target.value)}
-                    className="w-full border-2 rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none cursor-pointer"
-                    style={{ borderColor: "rgba(0,0,0,0.1)" }}
-                  >
-                    {["Conto", "Poema", "Crônica", "Carta", "Fantasia", "Romance"].map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Tags</label>
-                  <input
-                    value={tags}
-                    onChange={e => setTags(e.target.value)}
-                    placeholder="identidade, escola..."
-                    className="w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none"
-                    style={{ borderColor: "rgba(0,0,0,0.1)" }}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Sua história</label>
-                <textarea
-                  value={text}
-                  onChange={e => setText(e.target.value)}
-                  placeholder="Era uma vez... (ou não. Comece como quiser)"
-                  rows={14}
-                  className="w-full border-2 rounded-2xl px-4 py-4 text-sm leading-relaxed focus:outline-none resize-none transition-colors"
-                  style={{ borderColor: text ? ORANGE : "rgba(0,0,0,0.1)" }}
-                />
-                <p className="text-xs text-gray-400 mt-1">{text.length} caracteres</p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Btn color={NAVY} outline>Salvar rascunho</Btn>
-                <GradBtn onClick={() => navigate("publicacao")}>Enviar para professor</GradBtn>
-                <Btn color={ORANGE} outline><span className="flex items-center gap-1.5"><Mic size={14} /> Ouvir meu texto</span></Btn>
-              </div>
+    <div className="min-h-screen" style={{ background: OFF_WHITE }}>
+      <div className="max-w-6xl mx-auto px-5 py-8">
+        <div className="flex gap-6 items-start">
+          <SidebarAluno current="criar-historia" navigate={navigate} />
+
+          <div className="flex-1 min-w-0">
+            <div className="mb-6">
+              <p className="text-sm font-semibold mb-1" style={{ color: ORANGE }}>Editor de história</p>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">Criar história</h1>
+              <p className="text-sm text-gray-500 mt-2 max-w-2xl">
+                Escreva no seu ritmo. Você pode salvar como rascunho, enviar para o professor ou ouvir seu texto antes da revisão.
+              </p>
             </div>
 
-            {/* Lateral */}
-            <div className="flex flex-col gap-4">
-              <div className="bg-white rounded-2xl p-5 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: ORANGE }}>Dicas de escrita</p>
-                {[
-                  "Comece pelo meio da história",
-                  "Descreva o que seu personagem sente",
-                  "Use diálogos para dar vida",
-                  "Não se preocupe com erros agora",
-                ].map((d, i) => (
-                  <div key={i} className="flex items-start gap-2 mb-2.5">
-                    <div className="w-4 h-4 rounded-full shrink-0 mt-0.5" style={{ background: ORANGE }} />
-                    <p className="text-xs text-gray-600">{d}</p>
+            {message && (
+              <div className="mb-5 rounded-2xl px-4 py-3 text-sm font-semibold border" style={{ background: `${ORANGE}10`, borderColor: `${ORANGE}35`, color: NAVY }}>
+                {message}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <section className="lg:col-span-2 bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-black/5">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Título da história</label>
+                    <input
+                      value={title}
+                      onChange={e => setTitle(e.target.value)}
+                      placeholder="Dê um título à sua história"
+                      className="w-full border-2 rounded-xl px-4 py-3 text-base font-semibold focus:outline-none transition-colors"
+                      style={{ borderColor: title ? ORANGE : "rgba(0,0,0,0.1)" }}
+                    />
                   </div>
-                ))}
-              </div>
-              <div className="rounded-2xl p-5" style={{ background: `${NAVY}10` }}>
-                <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: NAVY }}>Status do rascunho</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ background: ORANGE }} />
-                  <p className="text-xs text-gray-600 font-semibold">Editando...</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Categoria</label>
+                      <select
+                        value={cat}
+                        onChange={e => setCat(e.target.value)}
+                        className="w-full border-2 rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none cursor-pointer bg-white"
+                        style={{ borderColor: "rgba(0,0,0,0.1)" }}
+                      >
+                        {["Conto", "Poema", "Crônica", "Carta", "Fantasia", "Romance"].map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Tags</label>
+                      <input
+                        value={tags}
+                        onChange={e => setTags(e.target.value)}
+                        placeholder="identidade, escola, futuro"
+                        className="w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none"
+                        style={{ borderColor: tags ? MAGENTA : "rgba(0,0,0,0.1)" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Texto da história</label>
+                    <textarea
+                      value={text}
+                      onChange={e => setText(e.target.value)}
+                      placeholder="Comece sua história aqui..."
+                      rows={16}
+                      className="w-full min-h-[320px] border-2 rounded-2xl px-4 py-4 text-sm leading-relaxed focus:outline-none resize-y transition-colors"
+                      style={{ borderColor: text ? ORANGE : "rgba(0,0,0,0.1)" }}
+                    />
+                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs text-gray-400">
+                      <span>{text.length} caracteres</span>
+                      <span>Categoria: {cat}{tags ? ` · Tags: ${tags}` : ""}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <Btn color={NAVY} outline full onClick={handleSaveDraft}>Salvar rascunho</Btn>
+                    <GradBtn full onClick={handleSendToTeacher}>Enviar para professor</GradBtn>
+                    <Btn color={ORANGE} outline full onClick={handleListenText}>
+                      <span className="flex items-center justify-center gap-1.5"><Mic size={14} /> Ouvir meu texto</span>
+                    </Btn>
+                  </div>
                 </div>
-              </div>
-              <div className="rounded-2xl p-5" style={{ background: `${MAGENTA}10` }}>
-                <p className="text-xs font-bold mb-2" style={{ color: MAGENTA }}>Sobre publicação</p>
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  Você pode publicar com seu nome, um pseudônimo ou de forma anônima. Escolha como se sentir mais seguro.
-                </p>
-              </div>
+              </section>
+
+              <aside className="flex flex-col gap-4">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-black/5">
+                  <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: ORANGE }}>Dicas de escrita</p>
+                  <div className="flex flex-col gap-3">
+                    {tips.map((tip, index) => (
+                      <div key={tip} className="flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: index % 2 === 0 ? ORANGE : MAGENTA }}>
+                          {index + 1}
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed">{tip}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl p-5" style={{ background: `${NAVY}10` }}>
+                  <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: NAVY }}>Status do texto</p>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ background: draftStatus === "Enviado para revisão" ? NAVY : draftStatus === "Rascunho salvo" ? ORANGE : MAGENTA }}
+                    />
+                    <p className="text-sm text-gray-700 font-semibold">{draftStatus}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl p-5 text-white" style={{ background: `linear-gradient(135deg, ${ORANGE}, ${MAGENTA})` }}>
+                  <p className="text-sm font-extrabold mb-2">Publicação segura</p>
+                  <p className="text-xs text-white/75 leading-relaxed mb-4">
+                    Depois de enviar, você poderá escolher publicar com nome, pseudônimo ou de forma anônima.
+                  </p>
+                  <button className="text-xs font-bold underline underline-offset-4" onClick={() => navigate("publicacao")}>Ver opções de publicação</button>
+                </div>
+              </aside>
             </div>
           </div>
         </div>
@@ -1028,7 +1095,7 @@ function PageCriarHistoria({ navigate }: { navigate: (p: Page) => void }) {
   );
 }
 
-/* ── Minhas Histórias ────────────────────────────────── */
+/* -- Minhas Histórias ---------------------------------- */
 function PageMinhasHistorias({ navigate }: { navigate: (p: Page) => void }) {
   const stories = [
     { title: "O céu também muda", cat: "Conto", status: "Publicado", updated: "12 jun 2024" },
@@ -1458,4 +1525,5 @@ export default function App() {
     </div>
   );
 }
+
 
