@@ -39,6 +39,15 @@ export type Story = {
   created_at: string;
 };
 
+export type Feedback = {
+  id: string;
+  story_id: string;
+  professor_id: string;
+  comment: string;
+  action: "comentario" | "ajustes" | "aprovacao";
+  created_at: string;
+};
+
 /** Rótulos legíveis para cada status (usados nos badges da UI). */
 export const STATUS_LABEL: Record<StoryStatus, string> = {
   rascunho: "Rascunho",
@@ -98,6 +107,63 @@ export async function getStories(): Promise<Story[]> {
 /** Atualiza o status de uma história (ex.: aprovar, pedir ajustes). */
 export async function updateStoryStatus(id: string, status: StoryStatus) {
   return supabase.from("stories").update({ status }).eq("id", id);
+}
+
+/** Cria uma história do aluno logado (rascunho ou enviada). */
+export async function createStory(input: {
+  title: string;
+  category: string;
+  content: string;
+  status: StoryStatus;
+}) {
+  const profile = await getMyProfile();
+  if (!profile) return { data: null, error: { message: "Sem sessão" } };
+  if (!profile.school_id) return { data: null, error: { message: "Aluno sem escola vinculada" } };
+  return supabase
+    .from("stories")
+    .insert({
+      school_id: profile.school_id,
+      author_id: profile.id,
+      author_name: profile.name ?? profile.email,
+      title: input.title,
+      category: input.category,
+      content: input.content,
+      status: input.status,
+    })
+    .select()
+    .single();
+}
+
+/** Atualiza uma história existente (do próprio aluno). */
+export async function updateStory(
+  id: string,
+  input: Partial<{ title: string; category: string; content: string; status: StoryStatus }>
+) {
+  return supabase.from("stories").update(input).eq("id", id).select().single();
+}
+
+/** Lista os feedbacks de uma história (mais recentes primeiro). */
+export async function getFeedbacks(storyId: string): Promise<Feedback[]> {
+  const { data, error } = await supabase
+    .from("feedbacks")
+    .select("*")
+    .eq("story_id", storyId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[getFeedbacks]", error.message);
+    return [];
+  }
+  return (data ?? []) as Feedback[];
+}
+
+/** Lista todos os feedbacks visíveis ao aluno logado (RLS = só os das suas histórias). */
+export async function getMyFeedbacks(): Promise<Feedback[]> {
+  const { data, error } = await supabase.from("feedbacks").select("*");
+  if (error) {
+    console.error("[getMyFeedbacks]", error.message);
+    return [];
+  }
+  return (data ?? []) as Feedback[];
 }
 
 /** Registra um feedback do professor numa história. */

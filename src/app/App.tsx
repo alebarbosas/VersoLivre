@@ -3,7 +3,8 @@ import type { Session } from "@supabase/supabase-js";
 import {
   supabase, signIn, signUp, signOut, getMyProfile,
   getStories, updateStoryStatus, addFeedback, STATUS_LABEL,
-  type UserRole, type Story,
+  createStory, updateStory, getFeedbacks, getMyFeedbacks,
+  type UserRole, type Story, type Feedback,
 } from "../lib/supabase";
 import {
   Menu, X, User, BookOpen, PenLine, Library, FileText,
@@ -776,6 +777,19 @@ function PageLogin({ navigate }: { navigate: (p: Page) => void }) {
 
 /* ── Painel Aluno ────────────────────────────────────── */
 function PagePainelAluno({ navigate }: { navigate: (p: Page) => void }) {
+  const [nome, setNome] = useState("");
+  const [nStories, setNStories] = useState(0);
+  const [nFeedbacks, setNFeedbacks] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      const [perfil, lista, fbs] = await Promise.all([getMyProfile(), getStories(), getMyFeedbacks()]);
+      setNome(perfil?.name || "aluno(a)");
+      setNStories(lista.length);
+      setNFeedbacks(fbs.length);
+    })();
+  }, []);
+
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
       <div className="flex gap-6 items-start">
@@ -783,16 +797,16 @@ function PagePainelAluno({ navigate }: { navigate: (p: Page) => void }) {
         <div className="flex-1 min-w-0">
           {/* Saudação */}
           <div className="mb-8">
-            <p className="text-gray-500 text-sm">Bem-vinda de volta!</p>
-            <h1 className="text-2xl font-extrabold text-gray-900">Bem-vinda, Maria Giovana 👋</h1>
+            <p className="text-gray-500 text-sm">Bem-vindo(a) de volta!</p>
+            <h1 className="text-2xl font-extrabold text-gray-900">Olá, {nome} 👋</h1>
           </div>
 
           {/* Action cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { label: "Minhas histórias", val: "3", icon: <BookMarked size={22} />, color: ORANGE, page: "minhas-historias" as Page },
+              { label: "Minhas histórias", val: String(nStories), icon: <BookMarked size={22} />, color: ORANGE, page: "minhas-historias" as Page },
               { label: "Criar história", val: "+", icon: <PenLine size={22} />, color: MAGENTA, page: "criar-historia" as Page },
-              { label: "Feedback recebido", val: "2", icon: <MessageSquare size={22} />, color: NAVY, page: "textos-enviados" as Page },
+              { label: "Feedback recebido", val: String(nFeedbacks), icon: <MessageSquare size={22} />, color: NAVY, page: "minhas-historias" as Page },
               { label: "Status publicação", val: "✓", icon: <CheckCircle size={22} />, grad: true, page: "publicacao" as Page },
             ].map((c, i) => (
               <button
@@ -869,18 +883,37 @@ function PagePainelAluno({ navigate }: { navigate: (p: Page) => void }) {
 }
 
 /* ── Criar História ──────────────────────────────────── */
-function PageCriarHistoria({ navigate }: { navigate: (p: Page) => void }) {
-  const [title, setTitle] = useState("");
-  const [text, setText] = useState("");
-  const [cat, setCat] = useState("Conto");
+function PageCriarHistoria({ navigate, editStory }: { navigate: (p: Page) => void; editStory?: Story | null }) {
+  const [title, setTitle] = useState(editStory?.title ?? "");
+  const [text, setText] = useState(editStory?.content ?? "");
+  const [cat, setCat] = useState(editStory?.category ?? "Conto");
   const [tags, setTags] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  // salva (rascunho) ou envia para o professor
+  const salvar = async (status: "rascunho" | "enviado") => {
+    if (!title.trim()) { setMsg("Dê um título à sua história."); return; }
+    if (status === "enviado" && !text.trim()) { setMsg("Escreva sua história antes de enviar."); return; }
+    setSaving(true);
+    setMsg(null);
+
+    const payload = { title: title.trim(), category: cat, content: text, status };
+    const { error } = editStory
+      ? await updateStory(editStory.id, payload)
+      : await createStory(payload);
+
+    setSaving(false);
+    if (error) { setMsg("Erro ao salvar: " + error.message); return; }
+    navigate("minhas-historias");
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
       <div className="flex gap-6 items-start">
         <SidebarAluno current="criar-historia" navigate={navigate} />
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-extrabold mb-6">Criar história</h1>
+          <h1 className="text-2xl font-extrabold mb-6">{editStory ? "Editar história" : "Criar história"}</h1>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Editor */}
             <div className="md:col-span-2 flex flex-col gap-4">
@@ -929,9 +962,10 @@ function PageCriarHistoria({ navigate }: { navigate: (p: Page) => void }) {
                 />
                 <p className="text-xs text-gray-400 mt-1">{text.length} caracteres</p>
               </div>
+              {msg && <p className="text-sm font-semibold" style={{ color: MAGENTA }}>{msg}</p>}
               <div className="flex flex-wrap gap-3">
-                <Btn color={NAVY} outline>Salvar rascunho</Btn>
-                <GradBtn onClick={() => navigate("publicacao")}>Enviar para professor</GradBtn>
+                <Btn color={NAVY} outline onClick={() => !saving && salvar("rascunho")}>{saving ? "Salvando..." : "Salvar rascunho"}</Btn>
+                <GradBtn onClick={() => !saving && salvar("enviado")}>Enviar para professor</GradBtn>
                 <Btn color={ORANGE} outline><span className="flex items-center gap-1.5"><Mic size={14} /> Ouvir meu texto</span></Btn>
               </div>
             </div>
@@ -974,14 +1008,26 @@ function PageCriarHistoria({ navigate }: { navigate: (p: Page) => void }) {
 }
 
 /* ── Minhas Histórias ────────────────────────────────── */
-function PageMinhasHistorias({ navigate }: { navigate: (p: Page) => void }) {
-  const stories = [
-    { title: "O céu também muda", cat: "Conto", status: "Publicado", updated: "12 jun 2024" },
-    { title: "Carta para mim do futuro", cat: "Carta", status: "Em revisão", updated: "18 jun 2024" },
-    { title: "A floresta que respirava", cat: "Fantasia", status: "Rascunho", updated: "25 jun 2024" },
-    { title: "13 de junho", cat: "Crônica", status: "Enviado", updated: "20 jun 2024" },
-    { title: "Poema sem título", cat: "Poema", status: "Aprovado", updated: "10 jun 2024" },
-  ];
+function PageMinhasHistorias({ navigate, openStory }: { navigate: (p: Page) => void; openStory: (s: Story) => void }) {
+  const [stories, setStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fbStory, setFbStory] = useState<Story | null>(null);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [fbLoading, setFbLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => { setStories(await getStories()); setLoading(false); })();
+  }, []);
+
+  const verFeedback = async (s: Story) => {
+    setFbStory(s);
+    setFbLoading(true);
+    setFeedbacks(await getFeedbacks(s.id));
+    setFbLoading(false);
+  };
+
+  const fmtData = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  const acaoLabel: Record<string, string> = { comentario: "Comentário", ajustes: "Pediu ajustes", aprovacao: "Aprovou" };
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
@@ -992,26 +1038,62 @@ function PageMinhasHistorias({ navigate }: { navigate: (p: Page) => void }) {
             <h1 className="text-2xl font-extrabold">Minhas histórias</h1>
             <GradBtn onClick={() => navigate("criar-historia")}>+ Nova história</GradBtn>
           </div>
-          <div className="flex flex-col gap-4">
-            {stories.map((s, i) => (
-              <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{s.cat}</span>
-                    <StatusBadge status={s.status} />
+
+          {loading ? (
+            <p className="text-sm text-gray-400">Carregando...</p>
+          ) : stories.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-black/5">
+              <p className="text-sm text-gray-500 mb-4">Você ainda não tem histórias.</p>
+              <GradBtn onClick={() => navigate("criar-historia")}>Criar minha primeira história</GradBtn>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {stories.map(s => (
+                <div key={s.id} className="bg-white rounded-2xl p-5 shadow-sm border border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{s.category}</span>
+                      <StatusBadge status={STATUS_LABEL[s.status]} />
+                    </div>
+                    <h3 className="font-bold text-base text-gray-900">{s.title}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1"><Clock size={11} /> {fmtData(s.created_at)}</p>
                   </div>
-                  <h3 className="font-bold text-base text-gray-900">{s.title}</h3>
-                  <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1"><Clock size={11} /> {s.updated}</p>
+                  <div className="flex gap-2 shrink-0">
+                    <Btn color={ORANGE} onClick={() => openStory(s)}>Continuar</Btn>
+                    <Btn color={NAVY} outline onClick={() => verFeedback(s)}>Ver feedback</Btn>
+                  </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <Btn color={ORANGE} onClick={() => navigate("criar-historia")}>Continuar</Btn>
-                  <Btn color={NAVY} outline onClick={() => navigate("textos-enviados")}>Ver feedback</Btn>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Modal de feedback */}
+      {fbStory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-5" style={{ background: "rgba(27,12,115,0.45)" }} onClick={() => setFbStory(null)}>
+          <div className="bg-white rounded-3xl p-7 max-w-md w-full shadow-2xl relative max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setFbStory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer" aria-label="Fechar"><X size={20} /></button>
+            <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>Feedback do professor</p>
+            <h2 className="font-extrabold text-xl mb-4">{fbStory.title}</h2>
+            {fbLoading ? (
+              <p className="text-sm text-gray-400">Carregando...</p>
+            ) : feedbacks.length === 0 ? (
+              <p className="text-sm text-gray-500">Ainda não há feedback nesta história.</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {feedbacks.map(f => (
+                  <div key={f.id} className="rounded-xl p-4" style={{ background: `${MAGENTA}08` }}>
+                    <p className="text-xs font-bold mb-1" style={{ color: MAGENTA }}>{acaoLabel[f.action] ?? "Comentário"}</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{f.comment}</p>
+                    <p className="text-xs text-gray-400 mt-2">{fmtData(f.created_at)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1314,7 +1396,7 @@ function PageTextosEnviados({ navigate }: { navigate: (p: Page) => void }) {
 }
 
 /* ── Materiais ───────────────────────────────────────── */
-function PageMateriais({ navigate }: { navigate: (p: Page) => void }) {
+function PageMateriais({ navigate, role }: { navigate: (p: Page) => void; role?: UserRole | null }) {
   const mats = [
     { title: "Como criar um personagem", desc: "Guia passo a passo para dar vida a personagens únicos.", tipo: "Guia" },
     { title: "Como começar uma história", desc: "Técnicas para superar o bloqueio criativo inicial.", tipo: "Guia" },
@@ -1330,11 +1412,14 @@ function PageMateriais({ navigate }: { navigate: (p: Page) => void }) {
     { title: "Guia do professor", desc: "Manual completo para condução da eletiva.", tipo: "PDF" },
   ];
   const tipoColor: Record<string, string> = { PDF: ORANGE, Atividade: MAGENTA, Guia: NAVY, Ficha: "#2E7D32", Modelo: "#7B1FA2" };
+  const [showSoon, setShowSoon] = useState(false);
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
       <div className="flex gap-6 items-start">
-        <SidebarAluno current="materiais" navigate={navigate} />
+        {role === "professor"
+          ? <SidebarProf current="materiais" navigate={navigate} />
+          : <SidebarAluno current="materiais" navigate={navigate} />}
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-extrabold mb-2">Materiais de Apoio</h1>
           <p className="text-gray-500 text-sm mb-8">Recursos para professores e alunos da eletiva</p>
@@ -1348,13 +1433,41 @@ function PageMateriais({ navigate }: { navigate: (p: Page) => void }) {
                 <p className="text-gray-500 text-xs leading-relaxed mb-4">{m.desc}</p>
                 <div className="flex gap-2">
                   <Btn color={ORANGE}><span className="flex items-center gap-1.5"><Download size={12} /> Baixar</span></Btn>
-                  <Btn color={NAVY} outline><span className="flex items-center gap-1.5"><Eye size={12} /> Ver</span></Btn>
+                  <Btn color={NAVY} outline onClick={() => setShowSoon(true)}><span className="flex items-center gap-1.5"><Eye size={12} /> Ver</span></Btn>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {/* Modal "Em breve" */}
+      {showSoon && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-5"
+          style={{ background: "rgba(27,12,115,0.45)" }}
+          onClick={() => setShowSoon(false)}
+        >
+          <div
+            className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowSoon(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer"
+              aria-label="Fechar"
+            >
+              <X size={20} />
+            </button>
+            <div style={{ background: `linear-gradient(135deg, ${ORANGE}, ${MAGENTA})` }} className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-5">
+              <Clock size={30} className="text-white" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Em breve</h2>
+            <p className="text-gray-500 text-sm mb-6">A visualização deste material estará disponível em breve.</p>
+            <GradBtn full onClick={() => setShowSoon(false)}>Entendi</GradBtn>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1431,6 +1544,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [editStory, setEditStory] = useState<Story | null>(null);
 
   useEffect(() => {
     // sessão atual (ex.: usuário que já estava logado) + escuta mudanças
@@ -1448,8 +1562,17 @@ export default function App() {
     getMyProfile().then(p => setRole(p?.role ?? null));
   }, [session]);
 
+  // navegação normal limpa o rascunho em edição
   const navigate = (p: Page) => {
+    setEditStory(null);
     setPage(p);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // abre o editor já com uma história carregada (botão "Continuar")
+  const openStory = (s: Story) => {
+    setEditStory(s);
+    setPage("criar-historia");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -1475,12 +1598,12 @@ export default function App() {
         {view === "acessibilidade" && <PageAcessibilidade />}
         {view === "login" && <PageLogin navigate={navigate} />}
         {view === "painel-aluno" && <PagePainelAluno navigate={navigate} />}
-        {view === "criar-historia" && <PageCriarHistoria navigate={navigate} />}
-        {view === "minhas-historias" && <PageMinhasHistorias navigate={navigate} />}
+        {view === "criar-historia" && <PageCriarHistoria navigate={navigate} editStory={editStory} />}
+        {view === "minhas-historias" && <PageMinhasHistorias navigate={navigate} openStory={openStory} />}
         {view === "publicacao" && <PagePublicacao navigate={navigate} />}
         {view === "painel-professor" && <PagePainelProf navigate={navigate} />}
         {view === "textos-enviados" && <PageTextosEnviados navigate={navigate} />}
-        {view === "materiais" && <PageMateriais navigate={navigate} />}
+        {view === "materiais" && <PageMateriais navigate={navigate} role={role} />}
         {view === "baixa-conectividade" && <PageBaixaConect navigate={navigate} />}
       </main>
 
