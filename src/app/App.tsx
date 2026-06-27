@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { signIn, signUp, getMyProfile, type UserRole } from "../lib/supabase";
+import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase, signIn, signUp, signOut, getMyProfile, type UserRole } from "../lib/supabase";
 import {
   Menu, X, User, BookOpen, PenLine, Library, FileText,
   ChevronRight, Download, Eye, Mic, CheckCircle, Bookmark,
@@ -256,7 +257,10 @@ function SidebarAluno({ current, navigate }: { current: Page; navigate: (p: Page
         </button>
       ))}
       <div className="mt-4 pt-4 border-t border-black/5">
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-400 cursor-pointer w-full">
+        <button
+          onClick={async () => { await signOut(); navigate("home"); }}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-400 cursor-pointer w-full"
+        >
           <LogOut size={18} /> Sair
         </button>
       </div>
@@ -290,7 +294,10 @@ function SidebarProf({ current, navigate }: { current: Page; navigate: (p: Page)
         </button>
       ))}
       <div className="mt-4 pt-4 border-t border-black/5">
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-400 cursor-pointer w-full">
+        <button
+          onClick={async () => { await signOut(); navigate("home"); }}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-400 cursor-pointer w-full"
+        >
           <LogOut size={18} /> Sair
         </button>
       </div>
@@ -325,8 +332,8 @@ function PageHome({ navigate }: { navigate: (p: Page) => void }) {
                 A Verso Livre apoia escolas e professores na criação de eletivas de escrita criativa com foco em protagonismo LGBTQIAPN+, acompanhamento dos estudantes e publicação acessível das histórias.
               </p>
               <div className="flex flex-wrap gap-3">
-                <GradBtn onClick={() => navigate("painel-aluno")}>Sou aluno</GradBtn>
-                <Btn color={NAVY} onClick={() => navigate("painel-professor")}>Sou professor</Btn>
+                <GradBtn onClick={() => navigate("login")}>Sou aluno</GradBtn>
+                <Btn color={NAVY} onClick={() => navigate("login")}>Sou professor</Btn>
                 <Btn color={ORANGE} outline onClick={() => navigate("biblioteca")}>Conhecer biblioteca</Btn>
               </div>
             </div>
@@ -1398,39 +1405,55 @@ function PageBaixaConect({ navigate }: { navigate: (p: Page) => void }) {
 /* ══════════════════════════════════════════════════════
    ROOT APP
 ══════════════════════════════════════════════════════ */
+const DASHBOARD_PAGES: Page[] = [
+  "painel-aluno", "criar-historia", "minhas-historias", "publicacao",
+  "painel-professor", "textos-enviados", "materiais"
+];
+
 export default function App() {
   const [page, setPage] = useState<Page>("home");
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    // sessão atual (ex.: usuário que já estava logado) + escuta mudanças
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const navigate = (p: Page) => {
     setPage(p);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const dashboardPages: Page[] = [
-    "painel-aluno", "criar-historia", "minhas-historias", "publicacao",
-    "painel-professor", "textos-enviados", "materiais"
-  ];
-  const isDashboard = dashboardPages.includes(page);
+  // Trava: painéis só abrem com sessão. Sem login -> manda pro login.
+  const needsAuth = DASHBOARD_PAGES.includes(page) && authReady && !session;
+  const view: Page = needsAuth ? "login" : page;
+  const isDashboard = DASHBOARD_PAGES.includes(view);
 
   return (
     <div className="min-h-screen" style={{ background: OFF_WHITE, fontFamily: "'Poppins', sans-serif" }}>
-      <Header current={page} navigate={navigate} />
+      <Header current={view} navigate={navigate} />
 
       <main>
-        {page === "home" && <PageHome navigate={navigate} />}
-        {page === "biblioteca" && <PageBiblioteca />}
-        {page === "inspiracoes" && <PageInspiracoes />}
-        {page === "para-escolas" && <PageParaEscolas navigate={navigate} />}
-        {page === "acessibilidade" && <PageAcessibilidade />}
-        {page === "login" && <PageLogin navigate={navigate} />}
-        {page === "painel-aluno" && <PagePainelAluno navigate={navigate} />}
-        {page === "criar-historia" && <PageCriarHistoria navigate={navigate} />}
-        {page === "minhas-historias" && <PageMinhasHistorias navigate={navigate} />}
-        {page === "publicacao" && <PagePublicacao navigate={navigate} />}
-        {page === "painel-professor" && <PagePainelProf navigate={navigate} />}
-        {page === "textos-enviados" && <PageTextosEnviados navigate={navigate} />}
-        {page === "materiais" && <PageMateriais navigate={navigate} />}
-        {page === "baixa-conectividade" && <PageBaixaConect navigate={navigate} />}
+        {view === "home" && <PageHome navigate={navigate} />}
+        {view === "biblioteca" && <PageBiblioteca />}
+        {view === "inspiracoes" && <PageInspiracoes />}
+        {view === "para-escolas" && <PageParaEscolas navigate={navigate} />}
+        {view === "acessibilidade" && <PageAcessibilidade />}
+        {view === "login" && <PageLogin navigate={navigate} />}
+        {view === "painel-aluno" && <PagePainelAluno navigate={navigate} />}
+        {view === "criar-historia" && <PageCriarHistoria navigate={navigate} />}
+        {view === "minhas-historias" && <PageMinhasHistorias navigate={navigate} />}
+        {view === "publicacao" && <PagePublicacao navigate={navigate} />}
+        {view === "painel-professor" && <PagePainelProf navigate={navigate} />}
+        {view === "textos-enviados" && <PageTextosEnviados navigate={navigate} />}
+        {view === "materiais" && <PageMateriais navigate={navigate} />}
+        {view === "baixa-conectividade" && <PageBaixaConect navigate={navigate} />}
       </main>
 
       {!isDashboard && <Footer navigate={navigate} />}
