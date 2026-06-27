@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   Menu, X, User, BookOpen, PenLine, Library, FileText,
   ChevronRight, Download, Eye, Mic, CheckCircle, Bookmark,
@@ -716,99 +716,121 @@ function PageLogin({ navigate }: { navigate: (p: Page) => void }) {
 
 /* ── Painel Aluno ────────────────────────────────────── */
 function PagePainelAluno({ navigate }: { navigate: (p: Page) => void }) {
+  const progresso = [
+    { label: "Ideia inicial", done: true },
+    { label: "Rascunho", done: true },
+    { label: "Enviado", done: true },
+    { label: "Revisão", done: false },
+    { label: "Aprovado", done: false },
+    { label: "Publicado", done: false },
+  ];
+
+  const cards = [
+    { title: "Criar história", desc: "Abra o editor e desenvolva seu texto.", icon: <PenLine size={24} />, color: MAGENTA, page: "criar-historia" as Page },
+    { title: "Minhas histórias", desc: "3 textos em andamento.", icon: <BookMarked size={24} />, color: ORANGE, page: "minhas-historias" as Page },
+    { title: "Feedback", desc: "2 comentários para revisar.", icon: <MessageSquare size={24} />, color: NAVY, page: "minhas-historias" as Page },
+    { title: "Publicação", desc: "Escolha como aparecer.", icon: <CheckCircle size={24} />, color: ORANGE, gradient: true, page: "publicacao" as Page },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
       <div className="flex gap-6 items-start">
         <SidebarAluno current="painel-aluno" navigate={navigate} />
-        <div className="flex-1 min-w-0">
-          {/* Saudação */}
-          <div className="mb-8">
-            <p className="text-gray-500 text-sm">Bem-vinda de volta!</p>
-            <h1 className="text-2xl font-extrabold text-gray-900">Bem-vinda, Maria Giovana 👋</h1>
-          </div>
 
-          {/* Action cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            {[
-              { label: "Minhas histórias", val: "3", icon: <BookMarked size={22} />, color: ORANGE, page: "minhas-historias" as Page },
-              { label: "Criar história", val: "+", icon: <PenLine size={22} />, color: MAGENTA, page: "criar-historia" as Page },
-              { label: "Feedback recebido", val: "2", icon: <MessageSquare size={22} />, color: NAVY, page: "textos-enviados" as Page },
-              { label: "Status publicação", val: "✓", icon: <CheckCircle size={22} />, grad: true, page: "publicacao" as Page },
-            ].map((c, i) => (
+        <div className="flex-1 min-w-0">
+          <section className="mb-8 rounded-3xl p-6 md:p-8" style={{ background: `linear-gradient(135deg, ${NAVY}, ${MAGENTA})` }}>
+            <p className="text-white/70 text-sm font-semibold mb-1">Área do aluno</p>
+            <h1 className="text-2xl md:text-4xl font-extrabold text-white leading-tight">Olá, Maria Giovana</h1>
+            <p className="text-white/70 text-sm mt-3 max-w-2xl">
+              Continue sua jornada de escrita, acompanhe feedbacks e escolha com segurança como sua história será publicada.
+            </p>
+          </section>
+
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {cards.map((card) => (
               <button
-                key={i}
-                onClick={() => navigate(c.page)}
-                className="rounded-2xl p-5 text-left hover:scale-[1.02] transition-transform cursor-pointer"
-                style={{ background: c.grad ? `linear-gradient(135deg, ${ORANGE}, ${MAGENTA})` : c.color }}
+                key={card.title}
+                onClick={() => navigate(card.page)}
+                className="min-h-36 rounded-2xl p-5 text-left hover:scale-[1.02] transition-transform cursor-pointer flex flex-col justify-between"
+                style={{ background: card.gradient ? `linear-gradient(135deg, ${ORANGE}, ${MAGENTA})` : card.color }}
               >
-                <div className="text-white mb-2">{c.icon}</div>
-                <p className="text-white text-2xl font-extrabold">{c.val}</p>
-                <p className="text-white/70 text-xs">{c.label}</p>
+                <div className="text-white">{card.icon}</div>
+                <div>
+                  <p className="text-white font-extrabold text-base leading-tight">{card.title}</p>
+                  <p className="text-white/70 text-xs mt-1 leading-relaxed">{card.desc}</p>
+                </div>
               </button>
             ))}
-          </div>
+          </section>
 
-          {/* Books */}
-          <div className="mb-8">
+          <section className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-lg">Livros em destaque</h2>
               <button className="text-xs font-semibold" style={{ color: ORANGE }} onClick={() => navigate("inspiracoes")}>Ver todos</button>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-              {BOOKS.map((b, i) => (
-                <div key={i} className="shrink-0 w-36 bg-white rounded-2xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow">
-                  <div style={{ background: b.grad }} className="h-24 flex items-center justify-center">
+              {BOOKS.map((book) => (
+                <button
+                  key={book.title}
+                  onClick={() => navigate("inspiracoes")}
+                  className="shrink-0 w-40 bg-white rounded-2xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow text-left"
+                >
+                  <div style={{ background: book.grad }} className="h-24 flex items-center justify-center">
                     <BookOpen size={24} className="text-white opacity-60" />
                   </div>
                   <div className="p-3">
-                    <p className="font-bold text-xs text-gray-900 leading-tight truncate">{b.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">{b.author}</p>
+                    <p className="font-bold text-xs text-gray-900 leading-tight truncate">{book.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">{book.author}</p>
+                    <p className="text-[11px] mt-1 leading-tight" style={{ color: MAGENTA }}>{book.genre}</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
-          </div>
+          </section>
 
-          {/* Próxima leitura */}
-          <div className="rounded-3xl p-6 mb-8 cursor-pointer" style={{ background: NAVY }} onClick={() => navigate("biblioteca")}>
-            <p className="text-white/50 text-xs uppercase tracking-widest mb-2">Próxima história</p>
+          <section className="rounded-3xl p-6 mb-8 cursor-pointer" style={{ background: NAVY }} onClick={() => navigate("biblioteca")}>
+            <p className="text-white/50 text-xs uppercase tracking-widest mb-2">Próxima leitura</p>
             <h3 className="text-white font-bold text-2xl mb-1">Heartstopper</h3>
             <p className="text-white/60 text-sm mb-1">Autoria: Alice Oseman</p>
             <p className="text-white/50 text-xs mb-4">Gênero: Romance, drama, coming-of-age, LGBTQIAPN+</p>
             <p className="text-white/70 text-sm leading-relaxed mb-5">
-              Uma série de quadrinhos sobre dois adolescentes, Charlie e Nick, que se conhecem na escola e desenvolvem uma amizade que vira romance.
+              Uma série de quadrinhos sobre dois adolescentes que descobrem amizade, afeto e coragem dentro da escola.
             </p>
             <div className="flex gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-white" />
               <div className="w-2.5 h-2.5 rounded-full bg-white/30" />
               <div className="w-2.5 h-2.5 rounded-full bg-white/30" />
             </div>
-          </div>
+          </section>
 
-          {/* Progresso */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <section className="bg-white rounded-2xl p-6 shadow-sm">
             <h2 className="font-bold text-lg mb-5">Meu progresso</h2>
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {["Ideia inicial", "Rascunho", "Enviado", "Revisão", "Aprovado", "Publicado"].map((s, i) => (
-                <div key={i} className="flex items-center gap-2 shrink-0">
+              {progresso.map((step, index) => (
+                <div key={step.label} className="flex items-center gap-2 shrink-0">
                   <div className="flex flex-col items-center">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: i <= 2 ? ORANGE : `${ORANGE}30` }}>
-                      {i <= 2 ? <Check size={16} /> : i + 1}
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
+                      style={{ background: step.done ? ORANGE : `${ORANGE}30`, color: step.done ? "#fff" : ORANGE }}
+                    >
+                      {step.done ? <Check size={16} /> : index + 1}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 text-center max-w-[60px] leading-tight">{s}</p>
+                    <p className="text-xs text-gray-500 mt-1 text-center max-w-[70px] leading-tight">{step.label}</p>
                   </div>
-                  {i < 5 && <div className="w-8 h-0.5 mb-4" style={{ background: i < 2 ? ORANGE : "#e5e7eb" }} />}
+                  {index < progresso.length - 1 && (
+                    <div className="w-8 h-0.5 mb-4" style={{ background: progresso[index + 1].done ? ORANGE : "#e5e7eb" }} />
+                  )}
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Criar História ──────────────────────────────────── */
+/* -- Criar História ------------------------------------ */
 function PageCriarHistoria({ navigate }: { navigate: (p: Page) => void }) {
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -1343,3 +1365,4 @@ export default function App() {
     </div>
   );
 }
+
