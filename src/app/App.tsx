@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase, signIn, signUp, signOut, getMyProfile, type UserRole } from "../lib/supabase";
+import {
+  supabase, signIn, signUp, signOut, getMyProfile,
+  getStories, updateStoryStatus, addFeedback, STATUS_LABEL,
+  type UserRole, type Story,
+} from "../lib/supabase";
 import {
   Menu, X, User, BookOpen, PenLine, Library, FileText,
   ChevronRight, Download, Eye, Mic, CheckCircle, Bookmark,
@@ -1095,21 +1099,27 @@ function PagePublicacao({ navigate }: { navigate: (p: Page) => void }) {
 
 /* ── Painel Professor ────────────────────────────────── */
 function PagePainelProf({ navigate }: { navigate: (p: Page) => void }) {
-  const alunos = [
-    { nome: "Maria Giovana", historia: "O céu também muda", cat: "Conto", status: "Publicado" },
-    { nome: "Ícaro Lima", historia: "A biblioteca proibida", cat: "Romance", status: "Em revisão" },
-    { nome: "Luna Paz", historia: "Floresta de espelhos", cat: "Fantasia", status: "Enviado" },
-    { nome: "M. dos Santos", historia: "Poema sem título", cat: "Poema", status: "Aprovado" },
-    { nome: "Vento do Norte", historia: "13 de junho", cat: "Crônica", status: "Rascunho" },
-    { nome: "Sol de Junho", historia: "Cartas para ninguém", cat: "Carta", status: "Enviado" },
-  ];
+  const [nome, setNome] = useState("");
+  const [stories, setStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const [perfil, lista] = await Promise.all([getMyProfile(), getStories()]);
+      setNome(perfil?.name || "professor(a)");
+      setStories(lista);
+      setLoading(false);
+    })();
+  }, []);
+
+  const count = (fn: (s: Story) => boolean) => stories.filter(fn).length;
   const stats = [
-    { val: "28", label: "Alunos participantes", color: ORANGE },
-    { val: "16", label: "Histórias em andamento", color: MAGENTA },
-    { val: "7", label: "Aguardando revisão", color: NAVY },
-    { val: "5", label: "Histórias aprovadas", color: ORANGE },
-    { val: "3", label: "Publicadas na biblioteca", color: MAGENTA },
-    { val: "12", label: "Materiais disponíveis", color: NAVY },
+    { val: new Set(stories.map(s => s.author_name)).size, label: "Alunos participantes", color: ORANGE },
+    { val: count(s => s.status === "rascunho" || s.status === "enviado" || s.status === "em_revisao"), label: "Histórias em andamento", color: MAGENTA },
+    { val: count(s => s.status === "enviado"), label: "Aguardando revisão", color: NAVY },
+    { val: count(s => s.status === "aprovado"), label: "Histórias aprovadas", color: ORANGE },
+    { val: count(s => s.status === "publicado"), label: "Publicadas na biblioteca", color: MAGENTA },
+    { val: count(s => s.status === "em_revisao"), label: "Em revisão", color: NAVY },
   ];
 
   return (
@@ -1118,15 +1128,15 @@ function PagePainelProf({ navigate }: { navigate: (p: Page) => void }) {
         <SidebarProf current="painel-professor" navigate={navigate} />
         <div className="flex-1 min-w-0">
           <div className="mb-8">
-            <p className="text-gray-500 text-sm">Bem-vinda de volta!</p>
-            <h1 className="text-2xl font-extrabold">Bem-vinda, professora Marina 👋</h1>
+            <p className="text-gray-500 text-sm">Bem-vindo(a) de volta!</p>
+            <h1 className="text-2xl font-extrabold">Olá, {nome} 👋</h1>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
             {stats.map((s, i) => (
               <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-black/5">
-                <p className="text-3xl font-extrabold mb-1" style={{ color: s.color }}>{s.val}</p>
+                <p className="text-3xl font-extrabold mb-1" style={{ color: s.color }}>{loading ? "—" : s.val}</p>
                 <p className="text-xs text-gray-500">{s.label}</p>
               </div>
             ))}
@@ -1138,47 +1148,56 @@ function PagePainelProf({ navigate }: { navigate: (p: Page) => void }) {
               <h2 className="font-bold">Alunos e histórias</h2>
               <Btn color={MAGENTA} outline onClick={() => navigate("textos-enviados")}>Ver textos enviados</Btn>
             </div>
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-black/5">
-                    {["Aluno", "História", "Categoria", "Status", "Ação"].map(h => (
-                      <th key={h} className="px-5 py-3 text-left text-xs font-bold uppercase tracking-widest text-gray-400">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {alunos.map((a, i) => (
-                    <tr key={i} className="border-b border-black/5 last:border-0 hover:bg-gray-50">
-                      <td className="px-5 py-4 font-semibold text-sm">{a.nome}</td>
-                      <td className="px-5 py-4 text-sm text-gray-600">{a.historia}</td>
-                      <td className="px-5 py-4"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{a.cat}</span></td>
-                      <td className="px-5 py-4"><StatusBadge status={a.status} /></td>
-                      <td className="px-5 py-4">
-                        <button className="text-xs font-bold" style={{ color: MAGENTA }} onClick={() => navigate("textos-enviados")}>
-                          Ver texto
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Mobile cards */}
-            <div className="md:hidden flex flex-col gap-3 p-4">
-              {alunos.map((a, i) => (
-                <div key={i} className="rounded-xl border border-black/5 p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="font-bold text-sm">{a.nome}</p>
-                    <StatusBadge status={a.status} />
-                  </div>
-                  <p className="text-xs text-gray-500 mb-1">{a.historia}</p>
-                  <p className="text-xs text-gray-400">{a.cat}</p>
-                  <button className="mt-2 text-xs font-bold" style={{ color: MAGENTA }} onClick={() => navigate("textos-enviados")}>Ver texto →</button>
+
+            {loading ? (
+              <p className="p-8 text-center text-sm text-gray-400">Carregando histórias...</p>
+            ) : stories.length === 0 ? (
+              <p className="p-8 text-center text-sm text-gray-400">Nenhuma história ainda.</p>
+            ) : (
+              <>
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-black/5">
+                        {["Aluno", "História", "Categoria", "Status", "Ação"].map(h => (
+                          <th key={h} className="px-5 py-3 text-left text-xs font-bold uppercase tracking-widest text-gray-400">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stories.map(s => (
+                        <tr key={s.id} className="border-b border-black/5 last:border-0 hover:bg-gray-50">
+                          <td className="px-5 py-4 font-semibold text-sm">{s.author_name}</td>
+                          <td className="px-5 py-4 text-sm text-gray-600">{s.title}</td>
+                          <td className="px-5 py-4"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s.category}</span></td>
+                          <td className="px-5 py-4"><StatusBadge status={STATUS_LABEL[s.status]} /></td>
+                          <td className="px-5 py-4">
+                            <button className="text-xs font-bold" style={{ color: MAGENTA }} onClick={() => navigate("textos-enviados")}>
+                              Ver texto
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-            </div>
+                {/* Mobile cards */}
+                <div className="md:hidden flex flex-col gap-3 p-4">
+                  {stories.map(s => (
+                    <div key={s.id} className="rounded-xl border border-black/5 p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="font-bold text-sm">{s.author_name}</p>
+                        <StatusBadge status={STATUS_LABEL[s.status]} />
+                      </div>
+                      <p className="text-xs text-gray-500 mb-1">{s.title}</p>
+                      <p className="text-xs text-gray-400">{s.category}</p>
+                      <button className="mt-2 text-xs font-bold" style={{ color: MAGENTA }} onClick={() => navigate("textos-enviados")}>Ver texto →</button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1188,14 +1207,44 @@ function PagePainelProf({ navigate }: { navigate: (p: Page) => void }) {
 
 /* ── Textos Enviados ─────────────────────────────────── */
 function PageTextosEnviados({ navigate }: { navigate: (p: Page) => void }) {
+  const [stories, setStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(0);
   const [feedback, setFeedback] = useState("");
-  const textos = [
-    { aluno: "Maria Giovana", titulo: "O céu também muda", cat: "Conto", text: "Era uma vez uma menina chamada Lua que acordava todo dia olhando para o espelho esperando ver alguém diferente. Não porque ela fosse triste — ela só ainda não sabia exatamente quem era a pessoa que vivia naquele corpo. Um dia, ela decidiu mudar o nome. Só isso. Mas mudar o nome mudou tudo." },
-    { aluno: "Ícaro Lima", titulo: "A biblioteca proibida", cat: "Romance", text: "A biblioteca da escola fechava às 17h, mas Marcos sempre encontrava uma desculpa para ficar até mais tarde. Não era pelos livros — era por Gabriel, o bibliotecário estagiário que ria de forma silenciosa, como se o riso fosse um segredo entre ele e o mundo." },
-    { aluno: "Luna Paz", titulo: "Floresta de espelhos", cat: "Fantasia", text: "Naquela floresta, cada árvore era um espelho. Não refletia o rosto, mas a alma. Sofia entrou com medo. Saiu entendendo que ela podia ser muitas coisas ao mesmo tempo." },
-  ];
-  const t = textos[selected];
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const carregar = async () => {
+    const lista = await getStories();
+    setStories(lista);
+    setLoading(false);
+  };
+  useEffect(() => { carregar(); }, []);
+
+  const t = stories[selected];
+
+  // grava feedback e (se for o caso) muda o status da história
+  const enviar = async (action: "comentario" | "ajustes" | "aprovacao") => {
+    if (!t) return;
+    if (action !== "aprovacao" && !feedback.trim()) {
+      setMsg("Escreva um comentário antes de enviar.");
+      return;
+    }
+    setSaving(true);
+    setMsg(null);
+
+    const texto = feedback.trim() || "(aprovado sem comentários)";
+    const { error: errFb } = (await addFeedback(t.id, texto, action)) as { error: { message: string } | null };
+    if (errFb) { setMsg("Erro ao salvar: " + errFb.message); setSaving(false); return; }
+
+    if (action === "ajustes") await updateStoryStatus(t.id, "em_revisao");
+    if (action === "aprovacao") await updateStoryStatus(t.id, "aprovado");
+
+    setFeedback("");
+    setMsg(action === "comentario" ? "Comentário enviado!" : action === "ajustes" ? "Ajustes solicitados." : "História aprovada!");
+    await carregar();
+    setSaving(false);
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
@@ -1203,50 +1252,61 @@ function PageTextosEnviados({ navigate }: { navigate: (p: Page) => void }) {
         <SidebarProf current="textos-enviados" navigate={navigate} />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-extrabold mb-6">Textos enviados</h1>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Lista */}
-            <div className="flex flex-col gap-3">
-              {textos.map((tx, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSelected(i)}
-                  className="w-full text-left rounded-2xl p-4 border-2 transition-all cursor-pointer"
-                  style={{ borderColor: selected === i ? MAGENTA : "rgba(0,0,0,0.08)", background: selected === i ? `${MAGENTA}08` : "white" }}
-                >
-                  <p className="font-bold text-sm">{tx.titulo}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{tx.aluno} · {tx.cat}</p>
-                </button>
-              ))}
-            </div>
 
-            {/* Texto */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>{t.cat}</p>
-              <h2 className="font-extrabold text-xl mb-1">{t.titulo}</h2>
-              <p className="text-xs text-gray-400 mb-4">por {t.aluno}</p>
-              <p className="text-gray-700 text-sm leading-relaxed">{t.text}</p>
-            </div>
+          {loading ? (
+            <p className="text-sm text-gray-400">Carregando...</p>
+          ) : stories.length === 0 ? (
+            <p className="text-sm text-gray-400">Nenhuma história enviada ainda.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Lista */}
+              <div className="flex flex-col gap-3">
+                {stories.map((tx, i) => (
+                  <button
+                    key={tx.id}
+                    onClick={() => { setSelected(i); setMsg(null); setFeedback(""); }}
+                    className="w-full text-left rounded-2xl p-4 border-2 transition-all cursor-pointer"
+                    style={{ borderColor: selected === i ? MAGENTA : "rgba(0,0,0,0.08)", background: selected === i ? `${MAGENTA}08` : "white" }}
+                  >
+                    <div className="flex justify-between items-start gap-2 mb-1">
+                      <p className="font-bold text-sm">{tx.title}</p>
+                      <StatusBadge status={STATUS_LABEL[tx.status]} />
+                    </div>
+                    <p className="text-xs text-gray-500">{tx.author_name} · {tx.category}</p>
+                  </button>
+                ))}
+              </div>
 
-            {/* Feedback */}
-            <div className="flex flex-col gap-4">
-              <div className="bg-white rounded-2xl p-5 shadow-sm">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Comentário para o aluno</label>
-                <textarea
-                  value={feedback}
-                  onChange={e => setFeedback(e.target.value)}
-                  rows={5}
-                  placeholder="Escreva um feedback construtivo..."
-                  className="w-full border-2 rounded-xl p-3 text-sm resize-none focus:outline-none"
-                  style={{ borderColor: "rgba(0,0,0,0.1)" }}
-                />
-                <div className="flex flex-col gap-2 mt-3">
-                  <Btn color={ORANGE} full>Enviar comentário</Btn>
-                  <Btn color={NAVY} outline full>Solicitar ajustes</Btn>
-                  <GradBtn full>Aprovar publicação</GradBtn>
+              {/* Texto */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>{t.category}</p>
+                <h2 className="font-extrabold text-xl mb-1">{t.title}</h2>
+                <p className="text-xs text-gray-400 mb-4">por {t.author_name}</p>
+                <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{t.content}</p>
+              </div>
+
+              {/* Feedback */}
+              <div className="flex flex-col gap-4">
+                <div className="bg-white rounded-2xl p-5 shadow-sm">
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Comentário para o aluno</label>
+                  <textarea
+                    value={feedback}
+                    onChange={e => setFeedback(e.target.value)}
+                    rows={5}
+                    placeholder="Escreva um feedback construtivo..."
+                    className="w-full border-2 rounded-xl p-3 text-sm resize-none focus:outline-none"
+                    style={{ borderColor: "rgba(0,0,0,0.1)" }}
+                  />
+                  {msg && <p className="text-xs font-semibold mt-2" style={{ color: MAGENTA }}>{msg}</p>}
+                  <div className="flex flex-col gap-2 mt-3">
+                    <Btn color={ORANGE} full onClick={() => !saving && enviar("comentario")}>{saving ? "Salvando..." : "Enviar comentário"}</Btn>
+                    <Btn color={NAVY} outline full onClick={() => !saving && enviar("ajustes")}>Solicitar ajustes</Btn>
+                    <GradBtn full onClick={() => !saving && enviar("aprovacao")}>Aprovar publicação</GradBtn>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -1364,11 +1424,13 @@ const DASHBOARD_PAGES: Page[] = [
   "painel-aluno", "criar-historia", "minhas-historias", "publicacao",
   "painel-professor", "textos-enviados", "materiais"
 ];
+const PROFESSOR_PAGES: Page[] = ["painel-professor", "textos-enviados"];
 
 export default function App() {
   const [page, setPage] = useState<Page>("home");
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [role, setRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     // sessão atual (ex.: usuário que já estava logado) + escuta mudanças
@@ -1380,14 +1442,25 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // carrega o perfil (role) sempre que a sessão muda
+  useEffect(() => {
+    if (!session) { setRole(null); return; }
+    getMyProfile().then(p => setRole(p?.role ?? null));
+  }, [session]);
+
   const navigate = (p: Page) => {
     setPage(p);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Trava: painéis só abrem com sessão. Sem login -> manda pro login.
-  const needsAuth = DASHBOARD_PAGES.includes(page) && authReady && !session;
-  const view: Page = needsAuth ? "login" : page;
+  // Trava 1: painéis só abrem com sessão. Sem login -> manda pro login.
+  // Trava 2: telas de professor só para role 'professor'.
+  let view: Page = page;
+  if (DASHBOARD_PAGES.includes(page) && authReady && !session) {
+    view = "login";
+  } else if (PROFESSOR_PAGES.includes(page) && role && role !== "professor") {
+    view = "home";
+  }
   const isDashboard = DASHBOARD_PAGES.includes(view);
 
   return (
