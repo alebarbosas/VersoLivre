@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
-  supabase, signIn, signUp, signOut, getMyProfile,
+  supabase, signIn, signOut, getMyProfile,
   getStories, updateStoryStatus, addFeedback, STATUS_LABEL,
   createStory, updateStory, getFeedbacks, getMyFeedbacks,
   type UserRole, type Story, type Feedback,
@@ -120,7 +120,7 @@ function SectionTitle({ children, accent }: { children: React.ReactNode; accent?
 }
 
 /* ── Header ──────────────────────────────────────────── */
-function Header({ current, navigate }: { current: Page; navigate: (p: Page) => void }) {
+function Header({ current, navigate, loggedIn, onLogout }: { current: Page; navigate: (p: Page) => void; loggedIn?: boolean; onLogout?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -146,8 +146,14 @@ function Header({ current, navigate }: { current: Page; navigate: (p: Page) => v
           ))}
         </nav>
         <div className="flex items-center gap-3">
-          <Btn color={NAVY} outline onClick={() => navigate("login")}>Entrar</Btn>
-          <GradBtn onClick={() => navigate("login")}>Começar agora</GradBtn>
+          {loggedIn ? (
+            <Btn color={NAVY} outline onClick={onLogout}><span className="flex items-center gap-1.5"><LogOut size={14} /> Sair</span></Btn>
+          ) : (
+            <>
+              <Btn color={NAVY} outline onClick={() => navigate("login")}>Entrar</Btn>
+              <GradBtn onClick={() => navigate("login")}>Começar agora</GradBtn>
+            </>
+          )}
         </div>
       </div>
 
@@ -159,9 +165,15 @@ function Header({ current, navigate }: { current: Page; navigate: (p: Page) => v
         <button onClick={() => navigate("home")} className="font-extrabold text-base" style={{ color: NAVY }}>
           Verso Livre
         </button>
-        <button onClick={() => navigate("login")} className="p-1">
-          <User size={22} style={{ color: NAVY }} />
-        </button>
+        {loggedIn ? (
+          <button onClick={onLogout} className="p-1" aria-label="Sair">
+            <LogOut size={22} style={{ color: NAVY }} />
+          </button>
+        ) : (
+          <button onClick={() => navigate("login")} className="p-1" aria-label="Entrar">
+            <User size={22} style={{ color: NAVY }} />
+          </button>
+        )}
       </div>
 
       {menuOpen && (
@@ -176,7 +188,13 @@ function Header({ current, navigate }: { current: Page; navigate: (p: Page) => v
               {l.label}
             </button>
           ))}
-          <GradBtn full onClick={() => { navigate("login"); setMenuOpen(false); }}>Começar agora</GradBtn>
+          {loggedIn ? (
+            <Btn color={NAVY} outline full onClick={() => { onLogout?.(); setMenuOpen(false); }}>
+              <span className="flex items-center justify-center gap-1.5"><LogOut size={14} /> Sair</span>
+            </Btn>
+          ) : (
+            <GradBtn full onClick={() => { navigate("login"); setMenuOpen(false); }}>Começar agora</GradBtn>
+          )}
         </div>
       )}
     </header>
@@ -247,29 +265,54 @@ function SidebarAluno({ current, navigate }: { current: Page; navigate: (p: Page
     { icon: <Send size={18} />, label: "Publicação", page: "publicacao" },
   ];
   return (
-    <aside className="hidden md:flex flex-col w-56 shrink-0 bg-white rounded-2xl shadow-sm p-4 h-fit sticky top-24">
-      <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: ORANGE }}>Menu do Aluno</p>
-      {items.map(i => (
-        <button
-          key={i.page}
-          onClick={() => navigate(i.page)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold mb-1 transition-all cursor-pointer"
-          style={current === i.page
-            ? { background: `${ORANGE}15`, color: ORANGE }
-            : { color: "#4B4B4B" }}
-        >
-          {i.icon} {i.label}
-        </button>
-      ))}
-      <div className="mt-4 pt-4 border-t border-black/5">
-        <button
-          onClick={async () => { await signOut(); navigate("home"); }}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-400 cursor-pointer w-full"
-        >
-          <LogOut size={18} /> Sair
-        </button>
+    <>
+      {/* Mobile: menu horizontal rolável */}
+      <div className="md:hidden w-full bg-white rounded-2xl shadow-sm p-2 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-2 w-max">
+          {items.map(i => (
+            <button
+              key={i.page}
+              onClick={() => navigate(i.page)}
+              className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer"
+              style={current === i.page ? { background: `${ORANGE}15`, color: ORANGE } : { color: "#4B4B4B" }}
+            >
+              {i.icon} {i.label}
+            </button>
+          ))}
+          <button
+            onClick={async () => { await signOut(); navigate("home"); }}
+            className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap text-gray-400 cursor-pointer"
+          >
+            <LogOut size={16} /> Sair
+          </button>
+        </div>
       </div>
-    </aside>
+
+      {/* Desktop: barra lateral */}
+      <aside className="hidden md:flex flex-col w-56 shrink-0 bg-white rounded-2xl shadow-sm p-4 h-fit sticky top-24">
+        <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: ORANGE }}>Menu do Aluno</p>
+        {items.map(i => (
+          <button
+            key={i.page}
+            onClick={() => navigate(i.page)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold mb-1 transition-all cursor-pointer"
+            style={current === i.page
+              ? { background: `${ORANGE}15`, color: ORANGE }
+              : { color: "#4B4B4B" }}
+          >
+            {i.icon} {i.label}
+          </button>
+        ))}
+        <div className="mt-4 pt-4 border-t border-black/5">
+          <button
+            onClick={async () => { await signOut(); navigate("home"); }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-400 cursor-pointer w-full"
+          >
+            <LogOut size={18} /> Sair
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -284,29 +327,54 @@ function SidebarProf({ current, navigate }: { current: Page; navigate: (p: Page)
     // { icon: <WifiOff size={18} />, label: "Baixa conectividade", page: "baixa-conectividade" },
   ];
   return (
-    <aside className="hidden md:flex flex-col w-56 shrink-0 bg-white rounded-2xl shadow-sm p-4 h-fit sticky top-24">
-      <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: MAGENTA }}>Menu do Professor</p>
-      {items.map(i => (
-        <button
-          key={i.label}
-          onClick={() => navigate(i.page)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold mb-1 transition-all cursor-pointer"
-          style={current === i.page && i.page === current
-            ? { background: `${MAGENTA}15`, color: MAGENTA }
-            : { color: "#4B4B4B" }}
-        >
-          {i.icon} {i.label}
-        </button>
-      ))}
-      <div className="mt-4 pt-4 border-t border-black/5">
-        <button
-          onClick={async () => { await signOut(); navigate("home"); }}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-400 cursor-pointer w-full"
-        >
-          <LogOut size={18} /> Sair
-        </button>
+    <>
+      {/* Mobile: menu horizontal rolável */}
+      <div className="md:hidden w-full bg-white rounded-2xl shadow-sm p-2 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-2 w-max">
+          {items.map(i => (
+            <button
+              key={i.label}
+              onClick={() => navigate(i.page)}
+              className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer"
+              style={current === i.page ? { background: `${MAGENTA}15`, color: MAGENTA } : { color: "#4B4B4B" }}
+            >
+              {i.icon} {i.label}
+            </button>
+          ))}
+          <button
+            onClick={async () => { await signOut(); navigate("home"); }}
+            className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap text-gray-400 cursor-pointer"
+          >
+            <LogOut size={16} /> Sair
+          </button>
+        </div>
       </div>
-    </aside>
+
+      {/* Desktop: barra lateral */}
+      <aside className="hidden md:flex flex-col w-56 shrink-0 bg-white rounded-2xl shadow-sm p-4 h-fit sticky top-24">
+        <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: MAGENTA }}>Menu do Professor</p>
+        {items.map(i => (
+          <button
+            key={i.label}
+            onClick={() => navigate(i.page)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold mb-1 transition-all cursor-pointer"
+            style={current === i.page
+              ? { background: `${MAGENTA}15`, color: MAGENTA }
+              : { color: "#4B4B4B" }}
+          >
+            {i.icon} {i.label}
+          </button>
+        ))}
+        <div className="mt-4 pt-4 border-t border-black/5">
+          <button
+            onClick={async () => { await signOut(); navigate("home"); }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-400 cursor-pointer w-full"
+          >
+            <LogOut size={18} /> Sair
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -650,12 +718,10 @@ function traduzErroAuth(msg: string): string {
 }
 
 function PageLogin({ navigate }: { navigate: (p: Page) => void }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
 
   const irPorPerfil = (role?: UserRole) => {
     if (role === "professor") navigate("painel-professor");
@@ -663,32 +729,15 @@ function PageLogin({ navigate }: { navigate: (p: Page) => void }) {
     else navigate("painel-aluno");
   };
 
-  const limpar = () => { setError(null); setInfo(null); };
-
   const aoEnviar = async (e: React.FormEvent) => {
     e.preventDefault();
-    limpar();
+    setError(null);
     setLoading(true);
-
-    if (mode === "login") {
-      const { error } = await signIn(email, password);
-      if (error) { setError(traduzErroAuth(error.message)); setLoading(false); return; }
-      const profile = await getMyProfile();
-      setLoading(false);
-      irPorPerfil(profile?.role);
-      return;
-    }
-
-    // signup — apenas escolas podem se cadastrar
-    const { data, error } = await signUp(email, password, "escola");
+    const { error } = await signIn(email, password);
+    if (error) { setError(traduzErroAuth(error.message)); setLoading(false); return; }
+    const profile = await getMyProfile();
     setLoading(false);
-    if (error) { setError(traduzErroAuth(error.message)); return; }
-    if (data.session) {
-      irPorPerfil("escola"); // confirmação de e-mail desligada: já entra
-    } else {
-      setInfo("Conta criada! Enviamos um e-mail de confirmação. Confirme para poder entrar.");
-      setMode("login");
-    }
+    irPorPerfil(profile?.role);
   };
 
   const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:border-transparent focus:ring-2 transition-all";
@@ -700,31 +749,11 @@ function PageLogin({ navigate }: { navigate: (p: Page) => void }) {
           <div style={{ background: `linear-gradient(135deg, ${ORANGE}, ${MAGENTA})` }} className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-5">
             <BookOpen size={32} className="text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-            {mode === "login" ? "Bem-vindo de volta" : "Cadastre sua escola"}
-          </h1>
-          <p className="text-gray-500">
-            {mode === "login"
-              ? "Entre com seu e-mail e senha"
-              : "Crie a conta da instituição para começar"}
-          </p>
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Bem-vindo de volta</h1>
+          <p className="text-gray-500">Entre com seu e-mail e senha</p>
         </div>
 
         <div className="bg-white rounded-3xl p-7 shadow-sm border border-gray-100">
-          {/* alternância login / cadastro */}
-          <div className="flex gap-1 p-1 rounded-xl mb-6" style={{ background: "#F3F1F5" }}>
-            {([["login", "Entrar"], ["signup", "Cadastrar escola"]] as const).map(([k, label]) => (
-              <button
-                key={k}
-                onClick={() => { setMode(k); limpar(); }}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer"
-                style={mode === k ? { background: "#fff", color: NAVY, boxShadow: "0 1px 3px rgba(0,0,0,.1)" } : { color: "#888" }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={aoEnviar} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">E-mail</label>
@@ -746,29 +775,24 @@ function PageLogin({ navigate }: { navigate: (p: Page) => void }) {
             {error && (
               <p className="text-sm font-medium px-3 py-2 rounded-lg" style={{ background: "#FDECEA", color: "#C0392B" }}>{error}</p>
             )}
-            {info && (
-              <p className="text-sm font-medium px-3 py-2 rounded-lg" style={{ background: "#E8F5E9", color: "#2E7D32" }}>{info}</p>
-            )}
 
             <button
               type="submit" disabled={loading}
               style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA})` }}
               className="w-full px-5 py-3 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading ? "Aguarde..." : (mode === "login" ? "Entrar" : "Criar conta da escola")}
+              {loading ? "Aguarde..." : "Entrar"}
               {!loading && <ArrowRight size={16} />}
             </button>
           </form>
 
-          {mode === "login" && (
-            <p className="text-center text-xs text-gray-400 mt-5 leading-relaxed">
-              Alunos e professores acessam com a conta criada pela escola.<br />
-              É uma instituição?{" "}
-              <button onClick={() => { setMode("signup"); limpar(); }} className="font-semibold cursor-pointer" style={{ color: MAGENTA }}>
-                Cadastre sua escola
-              </button>
-            </p>
-          )}
+          <p className="text-center text-xs text-gray-400 mt-5 leading-relaxed">
+            Alunos e professores acessam com a conta criada pela escola.<br />
+            É uma instituição?{" "}
+            <button onClick={() => navigate("para-escolas")} className="font-semibold cursor-pointer" style={{ color: MAGENTA }}>
+              Leve a Verso Livre para sua escola
+            </button>
+          </p>
         </div>
       </div>
     </div>
@@ -792,7 +816,7 @@ function PagePainelAluno({ navigate }: { navigate: (p: Page) => void }) {
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-6 md:items-start">
         <SidebarAluno current="painel-aluno" navigate={navigate} />
         <div className="flex-1 min-w-0">
           {/* Saudação */}
@@ -910,7 +934,7 @@ function PageCriarHistoria({ navigate, editStory }: { navigate: (p: Page) => voi
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-6 md:items-start">
         <SidebarAluno current="criar-historia" navigate={navigate} />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-extrabold mb-6">{editStory ? "Editar história" : "Criar história"}</h1>
@@ -1031,7 +1055,7 @@ function PageMinhasHistorias({ navigate, openStory }: { navigate: (p: Page) => v
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-6 md:items-start">
         <SidebarAluno current="minhas-historias" navigate={navigate} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-6">
@@ -1112,7 +1136,7 @@ function PagePublicacao({ navigate }: { navigate: (p: Page) => void }) {
 
   return (
     <div className="max-w-3xl mx-auto px-5 py-12">
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-6 md:items-start">
         <SidebarAluno current="publicacao" navigate={navigate} />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-extrabold mb-2">Como você quer publicar sua história?</h1>
@@ -1206,7 +1230,7 @@ function PagePainelProf({ navigate }: { navigate: (p: Page) => void }) {
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-6 md:items-start">
         <SidebarProf current="painel-professor" navigate={navigate} />
         <div className="flex-1 min-w-0">
           <div className="mb-8">
@@ -1330,7 +1354,7 @@ function PageTextosEnviados({ navigate }: { navigate: (p: Page) => void }) {
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-6 md:items-start">
         <SidebarProf current="textos-enviados" navigate={navigate} />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-extrabold mb-6">Textos enviados</h1>
@@ -1416,7 +1440,7 @@ function PageMateriais({ navigate, role }: { navigate: (p: Page) => void; role?:
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-8">
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col md:flex-row gap-6 md:items-start">
         {role === "professor"
           ? <SidebarProf current="materiais" navigate={navigate} />
           : <SidebarAluno current="materiais" navigate={navigate} />}
@@ -1588,7 +1612,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen" style={{ background: OFF_WHITE, fontFamily: "'Poppins', sans-serif" }}>
-      <Header current={view} navigate={navigate} />
+      <Header
+        current={view}
+        navigate={navigate}
+        loggedIn={!!session}
+        onLogout={async () => { await signOut(); navigate("home"); }}
+      />
 
       <main>
         {view === "home" && <PageHome navigate={navigate} />}
